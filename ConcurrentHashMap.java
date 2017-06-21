@@ -882,18 +882,26 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
     /*
      * Volatile access methods are used for table elements as well as
-     * elements of in-progress next table while resizing.  All uses of
-     * the tab arguments must be null checked by callers.  All callers
-     * also paranoically precheck that tab's length is not zero (or an
+     * elements of in-progress next table while resizing.
+     * Volatile访问方法用于表元素以及正在调整大小的表中元素。
+     * All uses of the tab arguments must be null checked by callers.
+     * tab参数的所有使用必须由调用者进行空值检查。
+     * All callers also paranoically precheck that tab's length is not zero (or an
      * equivalent check), thus ensuring that any index argument taking
-     * the form of a hash value anded with (length - 1) is a valid
-     * index.  Note that, to be correct wrt arbitrary concurrency
+     * the form of a hash value anded with (length - 1) is a valid index.
+     * 所有的调用者也会（paranoically）预先检查该tab的长度不为零（或等效的检查），
+     * 从而确保采用散列值形式的索引参数（length - 1）是有效的索引。
+     * Note that, to be correct wrt arbitrary concurrency
      * errors by users, these checks must operate on local variables,
      * which accounts for some odd-looking inline assignments below.
+     *
      * Note that calls to setTabAt always occur within locked regions,
      * and so in principle require only release ordering, not
      * full volatile semantics, but are currently coded as volatile
      * writes to be conservative.
+     * 请注意，对setTabAt的调用总是发生在锁定区域内，因此原则上只需要发布排序，
+     * 而不是完整的volatile语义，但是当前被编码为volatile写入一种保守的策略。
+     *
      */
 
     @SuppressWarnings("unchecked")
@@ -2337,10 +2345,10 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
         /**
          * @param h hashcode
          * @param k key
-         *
-         *  java提供了使用continue直接跳出外层循环，此时需要在continue后通过标签指定外层循环。
-         *  java中的标签是一个紧跟着英文冒号的标识符，与其他语言不同的是，java中的标签只有放在循环语句之前才有作用。
-         *  需要注意的是，continue后标签必须是一个有效的标签，即这个标签须在continue语句所在循环的外层循环之前定义。
+         *          <p>
+         *          java提供了使用continue直接跳出外层循环，此时需要在continue后通过标签指定外层循环。
+         *          java中的标签是一个紧跟着英文冒号的标识符，与其他语言不同的是，java中的标签只有放在循环语句之前才有作用。
+         *          需要注意的是，continue后标签必须是一个有效的标签，即这个标签须在continue语句所在循环的外层循环之前定义。
          */
         Node<K, V> find(int h, Object k) {
             // loop to avoid arbitrarily deep recursion on forwarding nodes
@@ -2390,9 +2398,8 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     /**
      * Returns the stamp bits for resizing a table of size n.
      * Must be negative when shifted left by RESIZE_STAMP_SHIFT.
-     * 通过位操作返回了一个标志。意义是标志对长度为n的表扩容。
-     *
-     *
+     * <p>
+     * 返回一个标记位，用于对大小为n的表扩容。
      */
     static final int resizeStamp(int n) {
         //Integer.numberOfLeadingZeros(n)给定一个int类型数据，
@@ -2538,15 +2545,21 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                 break;
             else if (tab == table) {//table不为空，且在此期间其他线程未修改table
                 int rs = resizeStamp(n);
+                //对于即将进入transfer的线程，根据sizeCtl判断是否已经有其他线程正在扩容
+                // 当sizeCtl<0表示有其他线程正在扩容
                 if (sc < 0) {
                     Node<K, V>[] nt;
                     //RESIZE_STAMP_SHIFT=16,MAX_RESIZERS=2^15-1
+                    //操作最大扩容线程数，nextTable还没有初始化或已经扩容完毕的情况，直接返回
                     if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
                             sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
                             transferIndex <= 0)
                         break;
+                    //CAS设置sizeCtl=sizeCtl+1
+                    //后续过来帮忙扩容的线程，会将sizeCtl+1
                     if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
                         transfer(tab, nt);
+                    //第一个执行扩容操作的线程，将sizeCtl设置为：(resizeStamp(n) << RESIZE_STAMP_SHIFT) + 2)
                 } else if (U.compareAndSwapInt(this, SIZECTL, sc,
                         (rs << RESIZE_STAMP_SHIFT) + 2))
                     transfer(tab, null);
@@ -2565,7 +2578,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     private final void transfer(Node<K, V>[] tab, Node<K, V>[] nextTab) {
         int n = tab.length, stride;
         // NCPU:CPU核心数
-        // 主要是判断CPU处理的量，如果小于16则直接赋值16
+        //计算每次迁移的node个数 并确保每次迁移的node个数不少于16个
         if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
             stride = MIN_TRANSFER_STRIDE; // subdivide range
         // initiating只能有一个线程进行构造nextTable，如果别的线程进入发现不为空就不用构造nextTable了
@@ -2589,6 +2602,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
         ForwardingNode<K, V> fwd = new ForwardingNode<>(nextTab);
         boolean advance = true;
         boolean finishing = false; // to ensure sweep before committing nextTab
+        //i表示待迁移Node的索引，按照(i,i-1,i-2,i-3...bound)的顺序迁移Node.
         for (int i = 0, bound = 0; ; ) {
             Node<K, V> f;
             int fh;
@@ -2597,12 +2611,14 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                 //i为1或者已经完成
                 if (--i >= bound || finishing)
                     advance = false;
-                //source table 内没有数据，即已经迁移完成
+                    //transferIndex<=0表示已经没有需要迁移的node，将i置为-1，线程准备退出
                 else if ((nextIndex = transferIndex) <= 0) {
                     i = -1;
                     advance = false;
                 }
-                //通过cas更新 transferIndex 属性值
+                //如果此索引区间全部迁移完毕，尝试更新transferIndex，获取下一段需要迁移的索引区间
+                //通过cas更新 transferIndex 属性值 transferIndex = transferIndex - stride
+                //扩容 参考：http://www.jianshu.com/p/487d00afe6ca
                 else if (U.compareAndSwapInt
                         (this, TRANSFERINDEX, nextIndex,
                                 nextBound = (nextIndex > stride ?
@@ -2623,22 +2639,35 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                 }
                 //采用CAS算法更新SizeCtl
                 if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
+                    //第一个扩容的线程，执行transfer方法之前，会设置 sizeCtl = (resizeStamp(n) << RESIZE_STAMP_SHIFT) + 2
+                    //后续帮其扩容的线程，执行transfer方法之前，会设置 sizeCtl = sizeCtl+1
+                    //（以上两步是在tryPresize方法中进行的）
+                    //每一个退出transfer的方法的线程，退出之前，会设置 sizeCtl = sizeCtl-1
+                    //那么最后一个线程退出时：
+                    //必然有sc == (resizeStamp(n) << RESIZE_STAMP_SHIFT) + 2，即 (sc - 2) == resizeStamp(n) << RESIZE_STAMP_SHIFT
+                    //通过这个性质判断是否是最后一个线程，如果是，进行扩容的收尾工作。
+
+                    //不相等，说明不到最后一个线程，直接退出transfer方法
                     if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
                         return;
                     finishing = advance = true;
+                    //最后退出的线程要重新check下是否全部迁移完毕
                     i = n; // recheck before commit
                 }
             }
             //CAS算法获取某一个数组的节点，为空就设为forwordingNode
             else if ((f = tabAt(tab, i)) == null)
+                //更新tab中hashcode为i的节点为fwd
                 advance = casTabAt(tab, i, null, fwd);
                 //如果这个节点的hash值是MOVED，就表示这个节点是forwordingNode节点，就表示这个节点已经被处理过了
             else if ((fh = f.hash) == MOVED)
                 advance = true; // already processed
-            else {
-                synchronized (f) {
+            else { //迁移node节点
+                synchronized (f) { //对头节点进行加锁，禁止别的线程进入
+                    //CAS校验这个节点是否在table对应的i处
                     if (tabAt(tab, i) == f) {
                         Node<K, V> ln, hn;
+                        //链表迁移
                         if (fh >= 0) {
                             int runBit = fh & n;
                             Node<K, V> lastRun = f;
@@ -2656,6 +2685,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                                 hn = lastRun;
                                 ln = null;
                             }
+                            //将node链表，分成2个新的node链表
                             for (Node<K, V> p = f; p != lastRun; p = p.next) {
                                 int ph = p.hash;
                                 K pk = p.key;
@@ -2665,11 +2695,14 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                                 else
                                     hn = new Node<K, V>(ph, pk, pv, hn);
                             }
+                            //CAS存储在nextTable的i位置上
                             setTabAt(nextTab, i, ln);
+                            //CAS存储在nextTable的i+n位置上
                             setTabAt(nextTab, i + n, hn);
+                            //CAS在原table的i处设置forwordingNode节点，表示这个这个节点已经处理完毕
                             setTabAt(tab, i, fwd);
                             advance = true;
-                        } else if (f instanceof TreeBin) {
+                        } else if (f instanceof TreeBin) {//红黑树迁移
                             TreeBin<K, V> t = (TreeBin<K, V>) f;
                             TreeNode<K, V> lo = null, loTail = null;
                             TreeNode<K, V> hi = null, hiTail = null;
@@ -6784,6 +6817,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
 
     //拓展（非jdk源码部分）
+
     /***
      * Compares the value of the integer field at the specified offset
      * in the supplied object with the given expected value, and updates
