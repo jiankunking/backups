@@ -2337,16 +2337,21 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
     /**
      * A node inserted at head of bins during transfer operations.
+     * 1、标记作用，表示其他线程正在扩容，并且此节点已经扩容完毕
+     * 2、关联了nextTable,扩容期间可以通过find方法，访问已经迁移到了nextTable中的数据
+     * 3、生命周期：仅存活于扩容操作且bin不为null时，一定会出现在每个bin的首位。
      */
     static final class ForwardingNode<K, V> extends Node<K, V> {
         final Node<K, V>[] nextTable;
 
         ForwardingNode(Node<K, V>[] tab) {
+            //hash值为MOVED（-1）的节点就是ForwardingNode
             super(MOVED, null, null, null);
             this.nextTable = tab;
         }
 
         /**
+         * 通过此方法，访问被迁移到nextTable中的数据
          * @param h hashcode
          * @param k key
          *          <p>
@@ -2355,7 +2360,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
          *          需要注意的是，continue后标签必须是一个有效的标签，即这个标签须在continue语句所在循环的外层循环之前定义。
          */
         Node<K, V> find(int h, Object k) {
-            // loop to avoid arbitrarily deep recursion on forwarding nodes
+            // 查nextTable节点，outer避免深度递归
             outer:
             for (Node<K, V>[] tab = nextTable; ; ) {
                 Node<K, V> e;
@@ -2363,7 +2368,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                 if (k == null || tab == null || (n = tab.length) == 0 ||
                         (e = tabAt(tab, (n - 1) & h)) == null)
                     return null;
-                for (; ; ) {
+                for (; ; ) {// CAS算法多和死循环搭配！直到查到或null
                     int eh;
                     K ek;
                     if ((eh = e.hash) == h &&
@@ -2667,16 +2672,17 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
             else if ((fh = f.hash) == MOVED)
                 advance = true; // already processed
             else { //迁移node节点
+                // todo  具体迁移细节还需要处理一下
                 synchronized (f) { //对头节点进行加锁，禁止别的线程进入
                     //CAS校验这个节点是否在table对应的i处
                     if (tabAt(tab, i) == f) {
                         Node<K, V> ln, hn;
                         //链表迁移
                         if (fh >= 0) {
-                            int runBit = fh & n;
+                            int runBit = fh & n;// f.hash & n
                             Node<K, V> lastRun = f;
                             for (Node<K, V> p = f.next; p != null; p = p.next) {
-                                int b = p.hash & n;
+                                int b = p.hash & n;// f.next.hash & n
                                 if (b != runBit) {
                                     runBit = b;
                                     lastRun = p;
@@ -2689,15 +2695,15 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                                 hn = lastRun;
                                 ln = null;
                             }
-                            //将node链表，分成2个新的node链表，然后在倒序插入到新数组中
+                            //将node链表，分成2个新的node链表
                             for (Node<K, V> p = f; p != lastRun; p = p.next) {
                                 int ph = p.hash;
                                 K pk = p.key;
                                 V pv = p.val;
                                 if ((ph & n) == 0)
-                                    ln = new Node<K, V>(ph, pk, pv, ln);
+                                    ln = new Node<>(ph, pk, pv, ln);
                                 else
-                                    hn = new Node<K, V>(ph, pk, pv, hn);
+                                    hn = new Node<>(ph, pk, pv, hn); //新位置节点
                             }
                             //CAS存储在nextTable的i位置上
                             setTabAt(nextTab, i, ln);
