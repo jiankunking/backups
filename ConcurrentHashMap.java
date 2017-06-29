@@ -2934,6 +2934,9 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
     /**
      * Nodes for use in TreeBins
+     * 该类并不负责key-value的键值对包装，它用于在链表转换为红黑树时包装TreeNode节点，
+     * 也就是说ConcurrentHashMap红黑树存放是TreeBin，不是TreeNode。
+     * 该类封装了一系列的方法，包括putTreeVal、lookRoot、UNlookRoot、remove、balanceInsetion、balanceDeletion。
      */
     static final class TreeNode<K, V> extends Node<K, V> {
         TreeNode<K, V> parent;  // red-black tree links
