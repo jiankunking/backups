@@ -732,8 +732,9 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     /* ---------------- Static utilities -------------- */
 
     /**
-     * Spreads (XORs) higher bits of hash to lower and also forces top
-     * bit to 0. Because the table uses power-of-two masking, sets of
+     * Spreads (XORs) higher bits of hash to lower and also forces top bit to 0.
+     *
+     * Because the table uses power-of-two masking, sets of
      * hashes that vary only in bits above the current mask will
      * always collide. (Among known examples are sets of Float keys
      * holding consecutive whole numbers in small tables.)  So we
@@ -845,6 +846,8 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     /**
      * Returns x's Class if it is of the form "class C implements
      * Comparable<C>", else null.
+     * 通过反射判断对象x是否实现Comparable<C>接口
+     * 如果实现了Comparable，返回x的实际类型，也就是Class<C>，否则返回null.
      */
     static Class<?> comparableClassFor(Object x) {
         if (x instanceof Comparable) {
@@ -871,6 +874,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     /**
      * Returns k.compareTo(x) if x matches kc (k's screened comparable
      * class), else 0.
+     * 如果x实际类型是kc，则返回k.compareTo(x)，否则返回0
      */
     @SuppressWarnings({"rawtypes", "unchecked"}) // for cast to Comparable
     static int compareComparables(Class<?> kc, Object k, Object x) {
@@ -941,6 +945,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
      * Base counter value, used mainly when there is no contention,
      * but also as a fallback during table initialization
      * races. Updated via CAS.
+     * 基本计数器值，主要用于没有争用时，也可以作为表初始化时的备选。 通过CAS更新。
      */
     private transient volatile long baseCount;
 
@@ -971,11 +976,14 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
     /**
      * Spinlock (locked via CAS) used when resizing and/or creating CounterCells.
+     * 自旋锁 （通过CAS锁定） 在调整大小和/或创建 CounterCells 时使用。
+     * 在CounterCell类更新value中会使用，功能类似显示锁和内置锁，性能更好。
      */
     private transient volatile int cellsBusy;
 
     /**
      * Table of counter cells. When non-null, size is a power of 2.
+     *  counter cell表，长度总为2的幂次
      */
     private transient volatile CounterCell[] counterCells;
 
@@ -2526,6 +2534,8 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     /**
      * Tries to presize table to accommodate the given number of elements.
      *
+     *  重置表大小以适应给定数量的元素。
+     *
      * @param size number of elements (doesn't need to be perfectly accurate)
      */
     private final void tryPresize(int size) {
@@ -2758,6 +2768,8 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     /**
      * A padded cell for distributing counts.  Adapted from LongAdder
      * and Striped64.  See their internal docs for explanation.
+     *
+     * 用于分发计数的填充单元。
      */
     @sun.misc.Contended
     static final class CounterCell {
@@ -2790,6 +2802,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
             wasUncontended = true;
         }
         boolean collide = false;                // True if last slot nonempty
+        // todo 暂未明白
         for (; ; ) {
             CounterCell[] as;
             CounterCell a;
@@ -2869,6 +2882,9 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     /**
      * Replaces all linked nodes in bin at given index unless table is
      * too small, in which case resizes instead.
+     * 替换bin中给定索引的所有链接节点，除非表格太小。
+     *
+     * 当链表长度超过64时,将链表变为红黑树，否则只是进行一次扩容操作
      */
     private final void treeifyBin(Node<K, V>[] tab, int index) {
         Node<K, V> b;
@@ -2899,11 +2915,12 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
     /**
      * Returns a list on non-TreeNodes replacing those in given list.
+     *
      */
     static <K, V> Node<K, V> untreeify(Node<K, V> b) {
         Node<K, V> hd = null, tl = null;
         for (Node<K, V> q = b; q != null; q = q.next) {
-            Node<K, V> p = new Node<K, V>(q.hash, q.key, q.val, null);
+            Node<K, V> p = new Node<>(q.hash, q.key, q.val, null);
             if (tl == null)
                 hd = p;
             else
