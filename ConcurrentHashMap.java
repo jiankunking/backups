@@ -39,37 +39,11 @@ import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.AbstractMap;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.Spliterator;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ForkJoinPool;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.BinaryOperator;
-import java.util.function.Consumer;
-import java.util.function.DoubleBinaryOperator;
-import java.util.function.Function;
-import java.util.function.IntBinaryOperator;
-import java.util.function.LongBinaryOperator;
-import java.util.function.ToDoubleBiFunction;
-import java.util.function.ToDoubleFunction;
-import java.util.function.ToIntBiFunction;
-import java.util.function.ToIntFunction;
-import java.util.function.ToLongBiFunction;
-import java.util.function.ToLongFunction;
+import java.util.function.*;
 import java.util.stream.Stream;
 
 /**
@@ -643,7 +617,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     static final int MOVED = -1; // hash for forwarding nodes
     static final int TREEBIN = -2; // hash for roots of trees
     static final int RESERVED = -3; // hash for transient reservations
-    static final int HASH_BITS = 0x7fffffff; // usable bits of normal node hash
+    static final int HASH_BITS = 0x7fffffff; // usable bits of normal node hash 即2147483647
 
     /**
      * Number of CPUS, to place bounds on some sizings
@@ -733,7 +707,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
     /**
      * Spreads (XORs) higher bits of hash to lower and also forces top bit to 0.
-     *
+     * <p>
      * Because the table uses power-of-two masking, sets of
      * hashes that vary only in bits above the current mask will
      * always collide. (Among known examples are sets of Float keys
@@ -749,6 +723,9 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
      * never be used in index calculations because of table bounds.
      */
     static final int spread(int h) {
+        //^:如果相对应位值相同，则结果为0，否则为1.
+        //>>>:按位右移补零操作符。左操作数的值按右操作数指定的位数右移，移动得到的空位以零填充。 A>>>2得到15即0000 1111
+        //&:如果相对应位都是1，则结果为1，否则为0
         return (h ^ (h >>> 16)) & HASH_BITS;
     }
 
@@ -983,7 +960,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
     /**
      * Table of counter cells. When non-null, size is a power of 2.
-     *  counter cell表，长度总为2的幂次
+     * counter cell表，长度总为2的幂次
      */
     private transient volatile CounterCell[] counterCells;
 
@@ -1121,12 +1098,13 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
         int h = spread(key.hashCode());
         if ((tab = table) != null && (n = tab.length) > 0 &&
                 (e = tabAt(tab, (n - 1) & h)) != null) {
+            // 搜索到的节点key与传入的key相同且不为null,直接返回这个节点
             if ((eh = e.hash) == h) {
                 if ((ek = e.key) == key || (ek != null && key.equals(ek)))
                     return e.val;
-            } else if (eh < 0)
+            } else if (eh < 0)// 树
                 return (p = e.find(h, key)) != null ? p.val : null;
-            while ((e = e.next) != null) {
+            while ((e = e.next) != null) { // 链表，遍历
                 if (e.hash == h &&
                         ((ek = e.key) == key || (ek != null && key.equals(ek))))
                     return e.val;
@@ -2360,6 +2338,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
         /**
          * 通过此方法，访问被迁移到nextTable中的数据
+         *
          * @param h hashcode
          * @param k key
          *          <p>
@@ -2533,8 +2512,8 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
     /**
      * Tries to presize table to accommodate the given number of elements.
-     *
-     *  重置表大小以适应给定数量的元素。
+     * <p>
+     * 重置表大小以适应给定数量的元素。
      *
      * @param size number of elements (doesn't need to be perfectly accurate)
      */
@@ -2768,7 +2747,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
     /**
      * A padded cell for distributing counts.  Adapted from LongAdder
      * and Striped64.  See their internal docs for explanation.
-     *
+     * <p>
      * 用于分发计数的填充单元。
      */
     @sun.misc.Contended
@@ -2883,7 +2862,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
      * Replaces all linked nodes in bin at given index unless table is
      * too small, in which case resizes instead.
      * 替换bin中给定索引的所有链接节点，除非表格太小。
-     *
+     * <p>
      * 当链表长度超过64时,将链表变为红黑树，否则只是进行一次扩容操作
      */
     private final void treeifyBin(Node<K, V>[] tab, int index) {
@@ -2915,7 +2894,6 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
 
     /**
      * Returns a list on non-TreeNodes replacing those in given list.
-     *
      */
     static <K, V> Node<K, V> untreeify(Node<K, V> b) {
         Node<K, V> hd = null, tl = null;
@@ -2958,6 +2936,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
         /**
          * Returns the TreeNode (or null if not found) for the given key
          * starting at given root.
+         * 查找hash为h，key为k的节点
          */
         final TreeNode<K, V> findTreeNode(int h, Object k, Class<?> kc) {
             if (k != null) {
