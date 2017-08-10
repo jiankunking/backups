@@ -1191,7 +1191,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                 V oldVal = null;
                 synchronized (f) {
                     if (tabAt(tab, i) == f) {
-                        if (fh >= 0) {
+                        if (fh >= 0) {//链表
                             binCount = 1;
                             for (Node<K, V> e = f; ; ++binCount) {
                                 K ek;
@@ -1210,7 +1210,7 @@ public class ConcurrentHashMap<K, V> extends AbstractMap<K, V>
                                     break;
                                 }
                             }
-                        } else if (f instanceof TreeBin) {
+                        } else if (f instanceof TreeBin) {//树
                             Node<K, V> p;
                             binCount = 2;
                             if ((p = ((TreeBin<K, V>) f).putTreeVal(hash, key,
