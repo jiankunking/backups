@@ -103,3 +103,8 @@ func PrintJson(obj interface{}) {
 	}
 	fmt.Println(string(jsons))
 }
+
+//输出结果如下：
+// {"Name":"jiankunking","Age":12,"BlogArticles":{"one":{"Detail":"csdn blog","Author":"jiankunking","Urls":{"1":"http://blog.csdn.net/jiankunking/article/details/52143504","2":"http://blog.csdn.net/jiankunking/article/details/52673302","3":"http://blog.csdn.net/jiankunking/article/details/45479105"}},"two":{"Detail":"CSDN BLOG","Author":"JIANKUNKING","Urls":{"1":"http://blog.csdn.net/jiankunking/article/details/52684722","2":"http://blog.csdn.net/jiankunking/article/details/78808978"}}}}
+// map[string]interface {}
+// main.BlogArticle
